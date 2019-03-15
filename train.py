@@ -4,54 +4,31 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import DataLoader, random_split
 import torchvision
 import torchvision.transforms as transforms
-import torch.optim as optim
-import sys
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg                                                            
-import os                                                                                   
-import csv                                                                                  
 import pandas as pd                                                                         
 import numpy as np                                                                          
-import sklearn                                                                              
-from sklearn.model_selection import train_test_split                                        
-from sklearn.utils import shuffle                                                           
-                                                                                             
-                                                                                            
-## 1. Prepare and create generator                                                          
-                                                                                            
-# Save filepaths of images to `samples` to load into generator                              
-samples = []                                                                                
-                                                                                            
-def add_to_samples(csv_filepath, samples):                                                  
-    with open(csv_filepath) as csvfile:                                                     
-        reader = csv.reader(csvfile)                                                        
+import matplotlib.pyplot as plt
+import csv
+import sys
+import os
+
+
+# load the samples and split them into training and validation sets
+def read_samples(csv_filepath, validation_per = 0.2):
+    samples = []
+    with open(csv_filepath) as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader, None)
         for line in reader:                                                                 
-            samples.append(line)                                                            
-    return samples                                                                          
-                                                                  
-samples = add_to_samples('driving_log.csv', samples)                                   
-#samples = add_to_samples('data-recovery-annie/driving_log.csv', samples)
-def upd_dir(item):
-    updated_item='/nfs/stak/users/estajim/dl/project/images'+item[27:]
-    return updated_item                                                                     
-# Remove header                            
-samples = samples[1:]                                                                  #print(type(samples))                                                                  
-#print(samples[0][0][:24])                                                                  
-for i in range(len(samples)):                                                
-    samples[i][0]=upd_dir(samples[i][0])                                     
-    samples[i][1]=upd_dir(samples[i][1])                                     
-    samples[i][2]=upd_dir(samples[i][2])                                     
-                                                                             
-print("Samples: ", len(samples))                                             
-# Split samples into training and validation sets to reduce overfitting      
-train_samples, validation_samples = train_test_split(samples, test_size=0.1) 
-print(np.asarray(train_samples).shape)                                       
-#sys.exit()                                                                  
+            samples.append(line)
+    validation_count = int(validation_per * len(samples))
+    training_count = len(samples) - validation_count
+    training_samples, validation_samples = random_split(samples,\
+                                                             lengths = [training_count, validation_count])
+    return training_samples, validation_samples 
 
 
 class Net(nn.Module):
@@ -65,40 +42,26 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(64 * 8 * 8, 512)
         self.fc2 = nn.Linear(512, 10)
         self.bn = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True)
-        
+
     def forward(self, x):
-        x = F.relu(self.conv1(x)) # (32, 32, 32, 32)
-	#print(x.data.cpu().numpy().shape)
-        x = F.relu(self.conv2(x)) # (32, 32, 32, 32)
-	#print(x.data.cpu().numpy().shape)
-        x = self.pool(x) # (32, 32, 16, 16)
-	#print(x.data.cpu().numpy().shape)
-        x = F.relu(self.conv3(x)) # (32, 64, 16, 16)
-	#print(x.data.cpu().numpy().shape)
-        x = F.relu(self.conv4(x)) # (32, 64, 16, 16)
-	#print(x.data.cpu().numpy().shape)
-        x = self.pool(x) # (32, 64, 8, 8)
-	#print(x.data.cpu().numpy().shape)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = self.pool(x)
         num_features=self.num_flat_features(x)
-        x = x.view(-1, self.num_flat_features(x)) # (32, 4096)
-	#print(x.data.cpu().numpy().shape)
-        x = F.relu(self.fc1(x)) # (32, 512)
-	#print(x.data.cpu().numpy().shape)
+        x = x.view(-1, self.num_flat_features(x))
+        x = F.relu(self.fc1(x))
         x = self.bn(x)
-        x = self.fc2(x) # (32, 10)
-	#print(x.data.cpu().numpy().shape)
-	#print(x.size()[1:])
+        x = self.fc2(x)
         return x
 
     def num_flat_features(self, x):
-	#print(x.size()[1:])
-        # x.size() is (64L, 8L, 8L)
         size = x.size()[1:]  # all dimensions except the batch dimension
         num_features = 1
         for s in size:
             num_features *= s
-	#print(num_features)
-	#sys.exit()
         return num_features
 
 def eval_net(dataloader):
@@ -109,9 +72,6 @@ def eval_net(dataloader):
     criterion = nn.CrossEntropyLoss(size_average=False)
     for data in dataloader:
         images, labels = data
-	# My assumption is that images and labes as of now are np arrays.
-	# Then, the Variable() funciton makes them ready to be used as inputs of torch
-	# Then .cude() enables the GPU computations
         images, labels = Variable(images).cuda(), Variable(labels).cuda()
         outputs = net(images)
         _, predicted = torch.max(outputs.data, 1)
@@ -130,13 +90,19 @@ def plot_hist(train_set,test_set,target):
     plt.xlabel("Epochs")
     plt.ylabel(target)
     plt.show()
+
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
     MAX_EPOCH = 10  #maximum epoch to train
+    
+    samples_filepath = sys.argv[1] #csv file path
 
+    training_samples, validation_samples = read_samples(samples_filepath)                    
+    print(len(training_samples), len(validation_samples))
+    sys.exit()
     transform = transforms.Compose(
         [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]) #torchvision.transforms.Normalize(mean, std)
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                             download=True, transform=transform)
