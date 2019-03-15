@@ -8,38 +8,19 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.optim as optim
 import sys
-import numpy as np
-import matplotlib
 
+import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg                                                            
 import os                                                                                   
 import csv                                                                                  
-#import cv2                                                                                 
 import pandas as pd                                                                         
 import numpy as np                                                                          
-import matplotlib                                                                           
-matplotlib.use('Agg')                                                                       
-import matplotlib.pyplot as plt                                                             
-import matplotlib.image as mpimg                                                            
 import sklearn                                                                              
 from sklearn.model_selection import train_test_split                                        
 from sklearn.utils import shuffle                                                           
-                                                                                            
-#from keras.models import Sequential                                                         
-#from keras.layers import Dense, Dropout, Activation, Flatten, SpatialDropout2D, ELU         
-#from keras.layers import Convolution2D, MaxPooling2D, Cropping2D                            
-#from keras.layers.core import Lambda                                                        
-                                                                                            
-#from keras.optimizers import SGD, Adam, RMSprop                                             
-#from keras.utils import np_utils                                                            
-                                                                                            
-#from keras.callbacks import ModelCheckpoint                                                 
-                                                                                            
-#from keras.models import model_from_json                                                    
-import sys                                                                                  
-#sys.exit()                                                                                 
-                                                                                            
+                                                                                             
                                                                                             
 ## 1. Prepare and create generator                                                          
                                                                                             
