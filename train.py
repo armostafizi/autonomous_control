@@ -32,8 +32,8 @@ def read_samples(csv_filepath, validation_per = 0.2):
                                                         lengths = [training_count, validation_count])
     return training_samples, validation_samples 
 
-def augment(imgName, angle):
-    name = 'images/' + imgName.split('/')[-1]
+def augment(image_dir, imgName, angle):
+    name = image_dir + imgName.split('/')[-1]
     current_image = cv2.imread(name)
     current_image = current_image[65:-25, :, :]
     if np.random.rand() < 0.5:
@@ -43,22 +43,23 @@ def augment(imgName, angle):
 
 
 class Dataset(data.Dataset):
-    def __init__(self, samples, transform=None):
+    def __init__(self, samples, image_dir, transform=None):
         self.samples = samples
+        self.image_dir = image_dir
         self.transform = transform
     
     def __getitem__(self, index):
         batch_samples = self.samples[index]
         steering_angle = float(batch_samples[3])
-        center_img, steering_angle_center = augment(batch_samples[0], steering_angle)
-        left_img, steering_angle_left = augment(batch_samples[1], steering_angle + 0.4)
-        right_img, steering_angle_right = augment(batch_samples[2], steering_angle - 0.4)
+        center_img, steering_angle_center = augment(self.image_dir, batch_samples[0], steering_angle)
+        left_img, steering_angle_left = augment(self.image_dir, batch_samples[1], steering_angle + 0.4)
+        right_img, steering_angle_right = augment(self.image_dir, batch_samples[2], steering_angle - 0.4)
         center_img = self.transform(center_img)
         left_img = self.transform(left_img)
         right_img = self.transform(right_img)
-        return (center_img, steering_angle_center),\
-               (left_img, steering_angle_left),\
-               (right_img, steering_angle_right)
+        return (center_img, float(steering_angle_center)),\
+               (left_img, float(steering_angle_left)),\
+               (right_img, float(steering_angle_right))
                
     def __len__(self):
         return len(self.samples)
@@ -71,9 +72,8 @@ class Net(nn.Module):
         self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
         self.conv4 = nn.Conv2d(64, 64, 3, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(64 * 8 * 8, 512)
-        self.fc2 = nn.Linear(512, 10)
-        self.bn = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True)
+        self.fc1 = nn.Linear(87040, 512)
+        self.fc2 = nn.Linear(512, 1)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -85,7 +85,6 @@ class Net(nn.Module):
         num_features=self.num_flat_features(x)
         x = x.view(-1, self.num_flat_features(x))
         x = F.relu(self.fc1(x))
-        x = self.bn(x)
         x = self.fc2(x)
         return x
 
@@ -101,88 +100,84 @@ def eval_net(dataloader):
     total = 0
     total_loss = 0
     net.eval() # Why would I do this?
-    criterion = nn.CrossEntropyLoss(size_average=False)
-    for data in dataloader:
-        images, labels = data
-        images, labels = Variable(images).cuda(), Variable(labels).cuda()
+    criterion = nn.MSELoss(reduction='sum')
+    for center, left, right in dataloader:
+        images, targets = center
+        images, targets = Variable(images).cuda(), Variable(targets.float()).cuda().unsqueeze(1)
         outputs = net(images)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels.data).sum()
-        loss = criterion(outputs, labels)
-        total_loss += loss.data[0]
+        #_, predicted = torch.max(outputs.data, 1)
+        total += targets.size(0)
+        #correct += (predicted == targets.data).sum()
+        loss = criterion(outputs, targets)
+        total_loss += loss.data.item()
     net.train() # Why would I do this?
-    return total_loss / total, correct / total
+    return total_loss / total
 
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
     MAX_EPOCH = 10  #maximum epoch to train
-    
-    samples_filepath = sys.argv[1] #csv file path
+   
+    data_dir = sys.argv[1] # data directory
 
-    train_samples, test_samples = read_samples(samples_filepath)                     
+    train_samples, test_samples = read_samples(data_dir + 'driving_log.csv')                     
      
     transform = transforms.Compose(
         [transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    train_set = Dataset(train_samples, transform)
-    test_set = Dataset(test_samples, transform)
+    train_set = Dataset(train_samples, data_dir + 'IMG/', transform)
+    test_set = Dataset(test_samples, data_dir + 'IMG/', transform)
 
     trainloader = DataLoader(train_set,\
                              batch_size=BATCH_SIZE,\
                              shuffle=True,\
                              num_workers=4)
-    validation_generator = DataLoader(test_set,\
-                                      batch_size=BATCH_SIZE,\
-                                      shuffle=False,\
-                                      num_workers=4)
+    testloader = DataLoader(test_set,\
+                            batch_size=BATCH_SIZE,\
+                            shuffle=False,\
+                            num_workers=4)
 
 
     print('Building model...')
     net = Net().cuda()
     net.train() # Why would I do this?
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
     optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
     train_losses=list()
-    train_accuracies=list()
     test_losses=list()
-    test_accuracies=list()
 
     print('Start training...')
     for epoch in range(MAX_EPOCH):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, (center, left, right) in enumerate(trainloader, 0):
             # get the inputs
-            inputs, labels = center # only use center for now
+            inputs, targets = center # only use center for now
 
             # wrap them in Variable
-            inputs, labels = Variable(inputs).cuda(), Variable(labels).cuda()
+            inputs, targets = Variable(inputs).cuda(), Variable(targets.float()).cuda().unsqueeze(1)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
             outputs = net(inputs)
-            loss = criterion(outputs, labels)
+            loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
             # print statistics
-            running_loss += loss.data[0]
+            running_loss += loss.data.item()
             if i % 500 == 499:    # print every 2000 mini-batches
                 print('    Step: %5d avg_batch_loss: %.5f' %
                       (i + 1, running_loss / 500))
                 running_loss = 0.0
         print('    Finish training this EPOCH, start evaluating...')
-        train_loss, train_acc = eval_net(trainloader)
-        test_loss, test_acc = eval_net(testloader)
-        print('EPOCH: %d train_loss: %.5f train_acc: %.5f test_loss: %.5f test_acc %.5f' %
-              (epoch+1, train_loss, train_acc, test_loss, test_acc))
-        train_accuracies.append(train_acc)
+        train_loss = eval_net(trainloader)
+        test_loss = eval_net(testloader)
+        print('EPOCH: %d train_loss: %.5f test_loss: %.5f' %
+              (epoch+1, train_loss, test_loss))
         train_losses.append(train_loss)
-        test_accuracies.append(test_acc)
         test_losses.append(test_loss)
 
     print('Finished Training')
