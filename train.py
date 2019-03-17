@@ -1,5 +1,8 @@
 from __future__ import print_function
 from __future__ import division
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
@@ -12,7 +15,6 @@ import torchvision.transforms as transforms
 import pandas as pd                                                                         
 import numpy as np        
 import cv2
-import matplotlib.pyplot as plt
 import csv
 import sys
 import os
@@ -116,7 +118,7 @@ def eval_net(dataloader):
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 20  #maximum epoch to train
+    MAX_EPOCH = 2  #maximum epoch to train
    
     data_dir = sys.argv[1] # data directory
 
@@ -180,11 +182,10 @@ if __name__ == "__main__":
         train_losses.append(train_loss)
         test_losses.append(test_loss)
     print('Finished Training')
-    plt.figure()
     plt.plot(train_losses, label='train_loss')
     plt.plot(test_losses, label='test_loss')
     plt.legend()
-    now_str = datetime.now().strftime("%d_%s_", min(test_losses))
+    now_str = datetime.now().strftime("%d_%s")
     plt.savefig('models/model_%s_%.3f.png' % (now_str, min(test_losses)))
     print('Saving model...')
     torch.save(net.state_dict(), 'models/model_%s_%.3f.pth' % (now_str, min(test_losses)))
