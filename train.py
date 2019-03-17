@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import csv
 import sys
 import os
-
+from datetime import datetime
 
 # load the samples and split them into training and validation sets
 def read_samples(csv_filepath, validation_per = 0.2):
@@ -116,7 +116,7 @@ def eval_net(dataloader):
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 10  #maximum epoch to train
+    MAX_EPOCH = 20  #maximum epoch to train
    
     data_dir = sys.argv[1] # data directory
 
@@ -179,7 +179,12 @@ if __name__ == "__main__":
               (epoch+1, train_loss, test_loss))
         train_losses.append(train_loss)
         test_losses.append(test_loss)
-
     print('Finished Training')
+    plt.figure()
+    plt.plot(train_losses, label='train_loss')
+    plt.plot(test_losses, label='test_loss')
+    plt.legend()
+    now_str = datetime.now().strftime("%d_%s_", min(test_losses))
+    plt.savefig('models/model_%s_%.3f.png' % (now_str, min(test_losses)))
     print('Saving model...')
-    torch.save(net.state_dict(), 'model.pth')
+    torch.save(net.state_dict(), 'models/model_%s_%.3f.pth' % (now_str, min(test_losses)))
