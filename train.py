@@ -10,7 +10,8 @@ import torch.utils.data as data
 import torchvision
 import torchvision.transforms as transforms
 import pandas as pd                                                                         
-import numpy as np                                                                          
+import numpy as np        
+import cv2
 import matplotlib.pyplot as plt
 import csv
 import sys
@@ -28,9 +29,17 @@ def read_samples(csv_filepath, validation_per = 0.2):
     validation_count = int(validation_per * len(samples))
     training_count = len(samples) - validation_count
     training_samples, validation_samples = random_split(samples,\
-                                                             lengths = [training_count, validation_count])
+                                                        lengths = [training_count, validation_count])
     return training_samples, validation_samples 
 
+def augment(imgName, angle):
+    name = 'images/' + imgName.split('/')[-1]
+    current_image = cv2.imread(name)
+    current_image = current_image[65:-25, :, :]
+    if np.random.rand() < 0.5:
+        current_image = cv2.flip(current_image, 1)
+        angle = angle * -1.0  
+    return current_image, angle
 
 
 class Dataset(data.Dataset):
@@ -41,15 +50,16 @@ class Dataset(data.Dataset):
     def __getitem__(self, index):
         batch_samples = self.samples[index]
         steering_angle = float(batch_samples[3])
-        #center_img, steering_angle_center = augment(batch_samples[0], steering_angle)
-        #left_img, steering_angle_left = augment(batch_samples[1], steering_angle + 0.4)
-        #right_img, steering_angle_right = augment(batch_samples[2], steering_angle - 0.4)
+        center_img, steering_angle_center = augment(batch_samples[0], steering_angle)
+        left_img, steering_angle_left = augment(batch_samples[1], steering_angle + 0.4)
+        right_img, steering_angle_right = augment(batch_samples[2], steering_angle - 0.4)
         center_img, steering_angle_center = batch_samples[0], steering_angle
         left_img, steering_angle_left = batch_samples[1], steering_angle + 0.4
         right_img, steering_angle_right = batch_samples[2], steering_angle - 0.4
         center_img = self.transform(center_img)
         left_img = self.transform(left_img)
         right_img = self.transform(right_img)
+        print(center_img)
         return (center_img, steering_angle_center),\
                (left_img, steering_angle_left),\
                (right_img, steering_angle_right)
@@ -136,7 +146,6 @@ if __name__ == "__main__":
 
 
     print('Building model...')
-    sys.exit()
     net = Net().cuda()
     net.train() # Why would I do this?
 
@@ -185,5 +194,3 @@ if __name__ == "__main__":
     print('Finished Training')
     print('Saving model...')
     torch.save(net.state_dict(), 'part1.pth')
-    plot_hist(train_accuracies,test_accuracies,'Accuracy')
-    plot_hist(train_losses,test_losses,'Loss')
