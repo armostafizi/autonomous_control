@@ -53,20 +53,15 @@ class Dataset(data.Dataset):
         center_img, steering_angle_center = augment(batch_samples[0], steering_angle)
         left_img, steering_angle_left = augment(batch_samples[1], steering_angle + 0.4)
         right_img, steering_angle_right = augment(batch_samples[2], steering_angle - 0.4)
-        center_img, steering_angle_center = batch_samples[0], steering_angle
-        left_img, steering_angle_left = batch_samples[1], steering_angle + 0.4
-        right_img, steering_angle_right = batch_samples[2], steering_angle - 0.4
         center_img = self.transform(center_img)
         left_img = self.transform(left_img)
         right_img = self.transform(right_img)
-        print(center_img)
         return (center_img, steering_angle_center),\
                (left_img, steering_angle_left),\
                (right_img, steering_angle_right)
                
     def __len__(self):
         return len(self.samples)
-
 
 class Net(nn.Module):
     def __init__(self):
@@ -158,11 +153,10 @@ if __name__ == "__main__":
 
     print('Start training...')
     for epoch in range(MAX_EPOCH):  # loop over the dataset multiple times
-
         running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
+        for i, (center, left, right) in enumerate(trainloader, 0):
             # get the inputs
-            inputs, labels = data
+            inputs, labels = center # only use center for now
 
             # wrap them in Variable
             inputs, labels = Variable(inputs).cuda(), Variable(labels).cuda()
@@ -193,4 +187,4 @@ if __name__ == "__main__":
 
     print('Finished Training')
     print('Saving model...')
-    torch.save(net.state_dict(), 'part1.pth')
+    torch.save(net.state_dict(), 'model.pth')
