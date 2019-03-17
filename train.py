@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
+import torch.utils.data as data
 import torchvision
 import torchvision.transforms as transforms
 import pandas as pd                                                                         
@@ -38,7 +39,7 @@ class Dataset(data.Dataset):
         self.transform = transform
     
     def __getitem__(self, index):
-        batch_samples = self.samples[index)
+        batch_samples = self.samples[index]
         steering_angle = float(batch_samples[3])
         #center_img, steering_angle_center = augment(batch_samples[0], steering_angle)
         #left_img, steering_angle_left = augment(batch_samples[1], steering_angle + 0.4)
@@ -108,14 +109,6 @@ def eval_net(dataloader):
     net.train() # Why would I do this?
     return total_loss / total, correct / total
 
-def plot_hist(train_set,test_set,target):
-    epochs=range(1,len(train_set)+1)
-    plt.plot(epochs,train_set,'r',label="train "+target)
-    plt.plot(epochs,test_set,'g',label="test "+target)
-    plt.legend(loc='upper center',shadow=True)
-    plt.xlabel("Epochs")
-    plt.ylabel(target)
-    plt.show()
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
@@ -123,29 +116,27 @@ if __name__ == "__main__":
     
     samples_filepath = sys.argv[1] #csv file path
 
-    training_samples, validation_samples = read_samples(samples_filepath)                    
-    print(len(training_samples), len(validation_samples))
-    sys.exit()
+    train_samples, test_samples = read_samples(samples_filepath)                     
+     
     transform = transforms.Compose(
         [transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                            download=True, transform=transform)
-    print(type(trainset))
-    #sys.exit()
-    trainloader = torch.utils.data.DataLoader(np.asarray(train_samples)[:,0], batch_size=BATCH_SIZE,
-                                              shuffle=True, num_workers=2)
+    train_set = Dataset(train_samples, transform)
+    test_set = Dataset(test_samples, transform)
 
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                           download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
-                                             shuffle=False, num_workers=2)
+    trainloader = DataLoader(train_set,\
+                             batch_size=BATCH_SIZE,\
+                             shuffle=True,\
+                             num_workers=4)
+    validation_generator = DataLoader(test_set,\
+                                      batch_size=BATCH_SIZE,\
+                                      shuffle=False,\
+                                      num_workers=4)
 
-    classes = ('plane', 'car', 'bird', 'cat',
-               'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     print('Building model...')
+    sys.exit()
     net = Net().cuda()
     net.train() # Why would I do this?
 
