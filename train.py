@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, random_split
 import torch.utils.data as data
 import torchvision
 import torchvision.transforms as transforms
-import pandas as pd                                                                         
-import numpy as np        
+import pandas as pd
+import numpy as np
 import cv2
 import csv
 import sys
@@ -118,7 +118,7 @@ def eval_net(dataloader):
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 2  #maximum epoch to train
+    MAX_EPOCH = 30  #maximum epoch to train
    
     data_dir = sys.argv[1] # data directory
 

@@ -25,8 +25,9 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 
-transformations = transforms.Compose([transforms.Lambda(lambda x: (x / 255.0) - 0.5)])
-
+transfrom = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 class SimplePIController:
     def __init__(self, Kp, Ki):
@@ -68,8 +69,8 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
         image = image_array[65:-25, :, :]
-        image = transformations(image)
-        image = torch.Tensor(image)
+        image = transform(image)
+        #image = torch.Tensor(image)
         print(image.shape)
         image = image.view(1, 3, 70, 320)
         image = Variable(image)
