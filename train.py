@@ -188,4 +188,4 @@ if __name__ == "__main__":
     now_str = datetime.now().strftime("%d_%s")
     plt.savefig('models/model_%s_%.3f.png' % (now_str, min(test_losses)))
     print('Saving model...')
-    torch.save(net.state_dict(), 'models/model_%s_%.3f.pth' % (now_str, min(test_losses)))
+    torch.save(net.model, 'models/model_%s_%.3f.pth' % (now_str, min(test_losses)))
