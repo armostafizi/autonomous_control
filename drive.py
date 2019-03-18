@@ -18,8 +18,8 @@ from io import BytesIO
 import torch
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from model import *
-
+from train import Net
+import sys
 sio = socketio.Server()
 app = Flask(__name__)
 model = None
@@ -126,6 +126,9 @@ if __name__ == '__main__':
 
     # check that model Keras version is same as local Keras version
     checkpoint = torch.load(args.model, map_location=lambda storage, loc: storage)
+    print(type(checkpoint))
+    print(checkpoint.keys())
+    sys.exit()
     model = checkpoint['model']
 
     if args.image_folder != '':
