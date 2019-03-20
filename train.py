@@ -104,21 +104,20 @@ def eval_net(dataloader):
     net.eval() # Why would I do this?
     criterion = nn.MSELoss(reduction='sum')
     for center, left, right in dataloader:
-        images, targets = center
-        images, targets = Variable(images).cuda(), Variable(targets.float()).cuda().unsqueeze(1)
-        outputs = net(images)
-        #_, predicted = torch.max(outputs.data, 1)
-        total += targets.size(0)
-        #correct += (predicted == targets.data).sum()
-        loss = criterion(outputs, targets)
-        total_loss += loss.data.item()
+        for inputs, targets in [center, left, right]:
+            inputs, targets = Variable(inputs).cuda(),\
+                              Variable(targets.float()).cuda().unsqueeze(1)
+            outputs = net(inputs)
+            total += targets.size(0)
+            loss = criterion(outputs, targets)
+            total_loss += loss.data.item()
     net.train() # Why would I do this?
     return total_loss / total
 
 
 if __name__ == "__main__":
     BATCH_SIZE = 32 #mini_batch size
-    MAX_EPOCH = 30  #maximum epoch to train
+    MAX_EPOCH = 20  #maximum epoch to train
    
     data_dir = sys.argv[1] # data directory
 
@@ -154,22 +153,22 @@ if __name__ == "__main__":
     for epoch in range(MAX_EPOCH):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, (center, left, right) in enumerate(trainloader, 0):
-            # get the inputs
-            inputs, targets = center # only use center for now
+            for inputs, targets in [center, left, right]:
+                # get the inputs
+                inputs, targets = center # only use center for now
+                # wrap them in Variable
+                inputs, targets = Variable(inputs).cuda(),\
+                                  Variable(targets.float()).cuda().unsqueeze(1)
+                # zero the parameter gradients
+                optimizer.zero_grad()
 
-            # wrap them in Variable
-            inputs, targets = Variable(inputs).cuda(), Variable(targets.float()).cuda().unsqueeze(1)
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + backward + optimize
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            # print statistics
-            running_loss += loss.data.item()
+                # forward + backward + optimize
+                outputs = net(inputs)
+                loss = criterion(outputs, targets)
+                loss.backward()
+                optimizer.step()
+                # print statistics
+                running_loss += loss.data.item()
             if i % 500 == 499:    # print every 2000 mini-batches
                 print('    Step: %5d avg_batch_loss: %.5f' %
                       (i + 1, running_loss / 500))
@@ -189,3 +188,4 @@ if __name__ == "__main__":
     plt.savefig('models/model_%s_%.3f.png' % (now_str, min(test_losses)))
     print('Saving model...')
     torch.save(net.state_dict(), 'models/model_%s_%.3f.pth' % (now_str, min(test_losses)))
+

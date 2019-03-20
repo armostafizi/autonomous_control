@@ -18,7 +18,7 @@ from io import BytesIO
 import torch
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from model import *
+from train import *
 
 sio = socketio.Server()
 app = Flask(__name__)
