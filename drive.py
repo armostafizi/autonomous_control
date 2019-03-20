@@ -25,7 +25,7 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 
-transfrom = transforms.Compose(
+transform = transforms.Compose(
         [transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
@@ -51,7 +51,7 @@ class SimplePIController:
 
 
 controller = SimplePIController(0.1, 0.002)
-set_speed = 9
+set_speed = 15
 controller.set_desired(set_speed)
 
 
@@ -75,6 +75,9 @@ def telemetry(sid, data):
         image = image.view(1, 3, 70, 320)
         image = Variable(image)
         print(image.shape)
+        print('STEERING')
+        print(type(model))
+        print(model(image))
         steering_angle = model(image).view(-1).data.numpy()[0]
 
         throttle = controller.update(float(speed))
@@ -125,8 +128,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # check that model Keras version is same as local Keras version
-    checkpoint = torch.load(args.model, map_location=lambda storage, loc: storage)
-    model = checkpoint['model']
+    model_weights = torch.load(args.model, map_location=lambda storage, loc: storage)
+    model = Net()
+    model.load_state_dict(model_weights)
 
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
